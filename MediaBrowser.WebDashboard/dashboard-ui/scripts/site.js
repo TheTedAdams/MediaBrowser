@@ -1408,6 +1408,9 @@ $(function () {
     videoPlayerHtml += '<button class="mediaButton videoChaptersButton" title="Scenes" type="button" data-icon="video" data-iconpos="notext" data-inline="true">' + Globalize.translate('ButtonScenes') + '</button>';
     videoPlayerHtml += '<div data-role="popup" class="videoChaptersPopup videoPlayerPopup" data-history="false" data-theme="b"></div>';
 
+    videoPlayerHtml += '<button class="mediaButton videoGuideButton" title="Live TV Guide" type="button" data-icon="calendar" data-iconpos="notext" data-inline="true">' + Globalize.translate('ButtonGuide') + '</button>';
+    videoPlayerHtml += '<div data-role="popup" class="videoGuidePopup videoPlayerPopup" data-history="false" data-theme="b"></div>';
+
     videoPlayerHtml += '<button class="mediaButton videoQualityButton" title="Quality" type="button" data-icon="gear" data-iconpos="notext" data-inline="true">' + Globalize.translate('ButtonQuality') + '</button>';
     videoPlayerHtml += '<div data-role="popup" class="videoQualityPopup videoPlayerPopup" data-history="false" data-theme="b"></div>';
 

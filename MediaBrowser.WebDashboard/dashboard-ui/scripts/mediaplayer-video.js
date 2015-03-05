@@ -106,6 +106,37 @@
             onPopupOpen(elem);
         };
 
+        self.showLiveTvGuide = function () {
+            var guideHours = 5;
+
+            var startDate = new Date();
+            startDate.setMinutes(startDate.getMinutes() >= 30 ? 30 : 0);
+
+            var endDate = new Date(startDate.getTime());
+            endDate.setHours(endDate.getHours() + guideHours);
+
+            ApiClient.getLiveTvChannels().done(function (channels) {
+                ApiClient.getLiveTvPrograms({
+                    UserId: Dashboard.getCurrentUserId(),
+                    MaxStartDate: endDate.toISOString(),
+                    MinEndDate: startDate.toISOString(),
+                    channelIds: channels.Items.map(function (c) {
+                        return c.Id;
+                    }).join(',')
+                }).done(function (programs) {
+                    var elem = $('.videoGuidePopup').html(getGuideFlyoutHtml(channels.Items, programs.Items, startDate, endDate))
+                                                    .trigger('create')
+                                                    .popup('option', 'positionTo', $('.videoControls'))
+                                                    .off('popupafterclose', onFlyoutClose)
+                                                    .on('popupafterclose', onFlyoutClose);
+
+                    //onPopupOpen(elem);
+                    elem.popup("open").parents(".ui-popup-container")
+                        .css({ "top": "auto", "bottom": 46, "left": 20, "right": 20 });
+                });
+            });
+        };
+
         self.showQualityFlyout = function () {
 
             var elem = $('.videoQualityPopup').html(getQualityFlyoutHtml())
@@ -424,6 +455,12 @@
                 }
             });
 
+            $('.videoGuidePopup').on('click', '.guideChannel', function () {
+                var channelId = this.getAttribute('data-channel-id');
+                console.log(channelId);
+                MediaController.play(channelId);
+            });
+
             $('.videoQualityPopup').on('click', '.mediaPopupOption', function () {
 
                 if (!$(this).hasClass('selectedMediaPopupOption')) {
@@ -475,6 +512,10 @@
             $('.videoSubtitleButton').on('click', function () {
 
                 self.showSubtitleMenu();
+            });
+
+            $('.videoGuideButton').on('click', function () {
+                self.showLiveTvGuide();
             });
 
             $('.videoQualityButton').on('click', function () {
@@ -789,6 +830,78 @@
             html += '</div>';
 
             return html;
+        }
+
+        function getGuideFlyoutHtml(channels, programs, startDate, endDate) {
+
+            function getMinuteDiff(start, end) {
+                return Math.floor((end - start) / 60000);
+            }
+
+            var guideMinutes = getMinuteDiff(startDate, endDate);
+
+            var rowHeight = 46,
+                minWidth = 6;
+
+            function getTimePos(date) {
+                return (Math.max(0, getMinuteDiff(startDate, Math.min(date, new Date(endDate.getTime() + 30 * 60 * 1000))))) * minWidth;
+            }
+
+            var html = '';
+
+            html += '<div class="videoGuideContainer" style="overflow:auto;width:100%;height:' + (4.5 * rowHeight) + 'px;">';
+            html += '<div class="videoGuide" style="margin-top:' + (rowHeight / 2) + 'px;margin-left:' + (30 * minWidth) + 'px;position:relative;height:' + (channels.length * rowHeight) + 'px;width:' + ((guideMinutes + 30) * minWidth) + 'px;">';
+
+            for (var t = new Date(startDate.getTime()) ; t <= endDate; t.setTime(t.getTime() + (30 * 60 * 1000))) {
+                html += '<div style="box-sizing:border-box;border:1px solid #ccc;border-bottom:0;border-right:0;position:absolute;bottom:100%;left:' + getTimePos(t) + 'px;width:' + (30 * minWidth) + 'px;line-height:' + (rowHeight / 2 - 1) + 'px;padding-left:6px;">' + LiveTvHelpers.getDisplayTime(t) + '</div>';
+            }
+
+            html += channels.map(function (c, i, a) {
+                var channelId = c.Id;
+                var channelHtml = '';
+
+                channelHtml += '<div data-channel-id="' + channelId + '" class="guideChannel" style="cursor:pointer;box-sizing:border-box;position:absolute;top:' + (i * rowHeight) + 'px;right:100%;height:' + rowHeight + 'px;width:' + (minWidth * 30) + 'px;border-top:1px solid #ccc;padding:6px;">' + c.Name + '<br />' + c.Number + '</div>';
+
+                channelHtml += programs.filter(function (p) {
+                    return p.ChannelId === channelId
+                }).map(function (p) {
+                    var startPos = getTimePos(new Date(p.StartDate));
+                    var endPos = getTimePos(new Date(p.EndDate));
+
+                    var sD = new Date(p.StartDate);
+                    var eD = new Date(p.EndDate);
+                    console.log(sD.getHours() + ':' + sD.getMinutes() + ' - ' + eD.getHours() + ':' + eD.getMinutes());
+
+                    return '<div data-channel-id="' + channelId + '" class="guideChannel" style="cursor:pointer;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;box-sizing:border-box;position:absolute;top:' + (i * rowHeight) + 'px;left:' + startPos + 'px;height:' + rowHeight + 'px;width:' + (endPos - startPos) + 'px;border:1px solid #ccc;border-right:0;border-bottom:0;padding:6px;">' + p.Name + '<br />' + LiveTvHelpers.getDisplayTime(new Date(p.StartDate)) + ' - ' + LiveTvHelpers.getDisplayTime(new Date(p.EndDate)) + '</div>';
+                }).join('');
+
+                return channelHtml;
+            }).join('');
+
+            html += '</div>'; // .videoGuide
+            html += '</div>'; // .videoPlayerPopupScroller
+
+            return html;
+
+            //html += '<ul data-role="listview" data-inset="true">';
+
+            //html += channels.map(function (channel) {
+            //    var cssClass = "mediaPopupOption";
+
+            //    var channelHtml = '<li><a class="' + cssClass + '" href="#">';
+
+            //    channelHtml += '<p style="margin:0;">';
+
+            //    channelHtml += channel.Name;
+
+            //    channelHtml += '</p>';
+
+            //    channelHtml += '</a></li>';
+
+            //    return channelHtml;
+            //}).join('');
+
+            //html += '</ul>';
         }
 
         function getQualityFlyoutHtml() {
@@ -1191,6 +1304,12 @@
                 $('.videoChaptersButton').show();
             } else {
                 $('.videoChaptersButton').hide();
+            }
+
+            if (item.Type == 'TvChannel') {
+                $('.videoGuideButton').show();
+            } else {
+                $('.videoGuideButton').hide();
             }
 
             if (requiresNativeControls) {
